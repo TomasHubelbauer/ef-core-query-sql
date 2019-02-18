@@ -3,7 +3,7 @@
 This is a repository dedicated to testing out a reflection-based snippet for printing SQL generated from
 a EF Core query LINQ expression.
 
-The snipped code can be found in multiple places with comments worth following for updated versions:
+The snippet code can be found in multiple places with comments worth following for updated versions:
 
 - [Stack Overflow question](https://stackoverflow.com/q/37527783/2715716)
 - [GitHub gist](https://gist.github.com/rionmonster/2c59f449e67edf8cd6164e9fe66c545a)
