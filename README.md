@@ -18,17 +18,7 @@ dotnet add package Microsoft.EntityFrameworkCore
 dotnet add package Microsoft.EntityFrameworkCore.SqlServer
 ```
 
-Next let's create a database, an application database context and some model classes.
-
-```powershell
-sqllocaldb create ef_core_query_sql -s
-```
-
 For the classes see, `AppDbContext`, `User`, `Car` and `Trip` in code.
-
-We set up code which resets the database for every run - see the top of `Main`.
-
-And it works!
 
 ```csharp
 Console.WriteLine(appDbContext.Users.Include(u => u.Car).Where(u => u.Car != null).ToSql());
