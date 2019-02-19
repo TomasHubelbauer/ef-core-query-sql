@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Reflection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Internal;
@@ -16,11 +17,35 @@ namespace ef_core_query_sql
         {
             using (var appDbContext = new AppDbContext())
             {
-                appDbContext.Database.EnsureDeleted();
-                appDbContext.Database.EnsureCreated();
-                Console.WriteLine("The database has been reset.");
-                Console.WriteLine(appDbContext.Users.Include(u => u.Car).Where(u => u.Car != null).ToSql());
+                var query = appDbContext.Users.Include(u => u.Car).Where(u => u.Car != null);
+                var expression = query.Expression;
+                Console.WriteLine(expression);
+                var expression2 = GetExpression(() => appDbContext.Users.Include(u => u.Car).First()) as LambdaExpression;
+                Console.WriteLine(expression2.Body);
+
+                var bindingFlags = BindingFlags.NonPublic | BindingFlags.Instance;
+                var queryCompiler = query.Provider.GetType().GetField("_queryCompiler", bindingFlags).GetValue(query.Provider) as QueryCompiler;
+                var modelGenerator = queryCompiler.GetType().GetField("_queryModelGenerator", bindingFlags).GetValue(queryCompiler) as QueryModelGenerator;
+                var database = queryCompiler.GetType().GetField("_database", bindingFlags).GetValue(queryCompiler) as IDatabase;
+                var databaseDependencies = (DatabaseDependencies)typeof(Database).GetTypeInfo().DeclaredProperties.Single(x => x.Name == "Dependencies").GetValue(database);
+                var queryCompilationContext = databaseDependencies.QueryCompilationContextFactory.Create(false);
+                var modelVisitor = (RelationalQueryModelVisitor)queryCompilationContext.CreateQueryModelVisitor();
+                modelVisitor.CreateQueryExecutor<User>(modelGenerator.ParseQuery(expression));
+                foreach (var sql in modelVisitor.Queries) {
+                    Console.WriteLine("Query:");
+                    Console.WriteLine(sql);
+                }
             }
+        }
+
+        private static object GetPrivateField<TSource>(TSource source, string name)
+        {
+            return source.GetType().GetField(name, BindingFlags.NonPublic | BindingFlags.Instance).GetValue(source);
+        }
+
+        static Expression GetExpression<T>(Expression<Func<T>> expression)
+        {
+            return expression;
         }
     }
 
@@ -58,32 +83,5 @@ namespace ef_core_query_sql
         public int DistanceInKilometers { get; set; }
         public Car Car { get; set; }
         public int CarId { get; set; }
-    }
-    public static class IQueryableExtensions
-    {
-        private static readonly TypeInfo QueryCompilerTypeInfo = typeof(QueryCompiler).GetTypeInfo();
-
-        private static readonly FieldInfo QueryCompilerField = typeof(EntityQueryProvider).GetTypeInfo().DeclaredFields.First(x => x.Name == "_queryCompiler");
-
-        private static readonly FieldInfo QueryModelGeneratorField = QueryCompilerTypeInfo.DeclaredFields.First(x => x.Name == "_queryModelGenerator");
-
-        private static readonly FieldInfo DataBaseField = QueryCompilerTypeInfo.DeclaredFields.Single(x => x.Name == "_database");
-
-        private static readonly PropertyInfo DatabaseDependenciesField = typeof(Database).GetTypeInfo().DeclaredProperties.Single(x => x.Name == "Dependencies");
-
-        public static string ToSql<TEntity>(this IQueryable<TEntity> query) where TEntity : class
-        {
-            var queryCompiler = (QueryCompiler)QueryCompilerField.GetValue(query.Provider);
-            var modelGenerator = (QueryModelGenerator)QueryModelGeneratorField.GetValue(queryCompiler);
-            var queryModel = modelGenerator.ParseQuery(query.Expression);
-            var database = (IDatabase)DataBaseField.GetValue(queryCompiler);
-            var databaseDependencies = (DatabaseDependencies)DatabaseDependenciesField.GetValue(database);
-            var queryCompilationContext = databaseDependencies.QueryCompilationContextFactory.Create(false);
-            var modelVisitor = (RelationalQueryModelVisitor)queryCompilationContext.CreateQueryModelVisitor();
-            modelVisitor.CreateQueryExecutor<TEntity>(queryModel);
-            var sql = modelVisitor.Queries.First().ToString();
-
-            return sql;
-        }
     }
 }

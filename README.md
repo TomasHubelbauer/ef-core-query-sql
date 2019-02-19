@@ -31,5 +31,6 @@ INNER JOIN [Cars] AS [u.Car] ON [u].[CarId] = [u.Car].[Id]
 WHERE [u].[CarId] IS NOT NULL
 ```
 
-- [ ] Simplify this - drop the database and its reset altogether, this doesn't need any infra
+
 - [ ] Turns this into a hosted app (Azure Function?) and offer it as a tool for the dev community
+- [ ] https://github.com/aspnet/EntityFrameworkCore/wiki/Getting-and-Building-the-Code and debug passing a `First` expression
